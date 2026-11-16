@@ -1,8 +1,1 @@
--r requirements.txt
-
-pytest
-pytest-cov
-codecov
-black
-isort
-pre-commit
+-e .[dev]
