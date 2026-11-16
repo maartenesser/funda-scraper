@@ -1,268 +1,180 @@
-"""Main funda scraper module"""
+"""Sequential Funda scraper with replaceable session-aware transports."""
 
-import argparse
-import json
-import multiprocessing as mp
 import uuid
-from collections import OrderedDict
-from typing import List
-from urllib.parse import urlparse, urlunparse
-
+import warnings
+from pathlib import Path
+from urllib.parse import urlencode
 import pandas as pd
-import requests
-from bs4 import BeautifulSoup
-from tqdm import tqdm
-from tqdm.contrib.concurrent import process_map
-
 from funda_scraper.config.core import config
-from funda_scraper.utils import logger
-from funda_scraper.extract import DataExtractor
-from funda_scraper.filerepository import FileRepository
+from funda_scraper.errors import UnavailableError
+from funda_scraper.extract import DataExtractor, properties_frame
+from funda_scraper.html import listing_links, property_url
+from funda_scraper.preprocess import preprocess_data
+from funda_scraper.searchrequest import SearchRequest
+from funda_scraper.transport import BrowserTransport, RequestsTransport
 
 
-class FundaScraper(object):
-    """
-    A class used to scrape real estate data from the Funda website.
-    """
-
-    def __init__(self, search_request):
-        """
-
-        :param search_request: The parameters for the search
-        """
-        self.search_request = search_request
-
-        self.links: List[str] = []
-        self.raw_df = pd.DataFrame()
+class FundaScraper:
+    def __init__(
+        self,
+        search_request=None,
+        *,
+        area=None,
+        want_to="buy",
+        backend="requests",
+        transport=None,
+        delay=2.0,
+        timeout=45.0,
+        retries=2,
+        headless=True,
+        interactive=False,
+        **search_options,
+    ):
+        if search_request is not None:
+            if not isinstance(search_request, SearchRequest) or area is not None or search_options:
+                raise ValueError("Pass a SearchRequest OR area/search keywords, not both.")
+            self.search_request = search_request
+        else:
+            if area is None:
+                raise ValueError("area is required")
+            # n_pages/find_past were used in older releases.
+            for old, new in (("n_pages", "number_of_pages"), ("find_past", "find_sold")):
+                if old in search_options:
+                    if new in search_options:
+                        raise ValueError(f"Specify only one of {old} and {new}.")
+                    search_options[new] = search_options.pop(old)
+            self.search_request = SearchRequest(area=area, want_to=want_to, **search_options)
+        self.search_request.to_buy  # Validate before making any network requests.
+        if self.search_request.days_since is not None:
+            self.search_request.check_days_since
+        self.links = []
+        self.unavailable_links = []
+        self.raw_df = properties_frame([])
         self.clean_df = pd.DataFrame()
         self.base_url = config.base_url
-
-        self.run_id = str(uuid.uuid1())
-
-        self.file_repo = FileRepository()
+        self.run_id = str(uuid.uuid4())
         self.data_extractor = DataExtractor()
-
+        if transport is not None:
+            self.transport = transport
+        elif backend == "requests":
+            self.transport = RequestsTransport(delay, timeout, retries)
+        elif backend == "browser":
+            self.transport = BrowserTransport(delay, timeout, headless, interactive)
+        else:
+            raise ValueError("backend must be 'requests' or 'browser'")
 
     def __repr__(self):
         return str(self.search_request)
 
+    def __enter__(self):
+        return self
 
-    def _get_list_pages(self, page_start: int = None, number_of_pages: int = None) -> None:
+    def __exit__(self, *args):
+        self.close()
 
-        page_start = self.search_request.page_start if page_start is None else page_start
-        number_of_pages = self.search_request.number_of_pages if number_of_pages is None else number_of_pages
+    def close(self):
+        self.transport.close()
 
-        main_url = self._build_main_query_url()
+    def _build_main_query_url(self):
+        request = self.search_request
+        params = {"selected_area": f'["{request.area}"]'}
+        if request.property_type:
+            import json
 
-        for i in tqdm(range(page_start, page_start + number_of_pages)):
-            url = f"{main_url}&search_result={i}"
-            response = requests.get(url, headers = config.header)
-            self.file_repo.save_list_page(response.text, i, self.run_id)
-
-        return
-
-
-    def _get_detail_pages(self):
-        urls = []
-
-        list_pages = self.file_repo.get_list_pages(self.run_id)
-
-        for page in list_pages:
-            soup = BeautifulSoup(page, "lxml")
-            script_tag = soup.find_all("script", {"type": "application/ld+json"})[0]
-            json_data = json.loads(script_tag.contents[0])
-            item_list = [item["url"] for item in json_data["itemListElement"]]
-            urls += item_list
-
-        urls = self.remove_duplicates(urls)
-        fixed_urls = [self.fix_link(url) for url in urls]
-
-        pools = mp.cpu_count()
-        content = process_map(self.scrape_one_link, fixed_urls, max_workers=pools)
-
-        for i, c in enumerate(content):
-             self.file_repo.save_detail_page(c, i, self.run_id)
-
-
-    def scrape_one_link(self, link: str) -> str:
-        response = requests.get(link, headers=config.header)
-        return response.text
-
+            params["object_type"] = json.dumps(
+                request.property_type.split(","), separators=(",", ":")
+            )
+        if request.find_sold:
+            params["availability"] = '["unavailable"]'
+        if request.min_price is not None or request.max_price is not None:
+            low = "" if request.min_price is None else request.min_price
+            high = "" if request.max_price is None else request.max_price
+            params["price"] = f'"{low}-{high}"'
+        if request.days_since is not None:
+            params["publication_date"] = request.check_days_since
+        if request.min_floor_area is not None or request.max_floor_area is not None:
+            low = "" if request.min_floor_area is None else request.min_floor_area
+            high = "" if request.max_floor_area is None else request.max_floor_area
+            params["floor_area"] = f'"{low}-{high}"'
+        if request.sort is not None:
+            params["sort"] = f'"{request.sort_by}"'
+        market = "koop" if request.to_buy else "huur"
+        return f"{self.base_url}/zoeken/{market}?{urlencode(params)}"
 
     @staticmethod
-    def _get_links_from_one_parent(url: str) -> List[str]:
-        """Scrapes all available property links from a single Funda search page."""
-        response = requests.get(url, headers=config.header)
-        soup = BeautifulSoup(response.text, "lxml")
-
-        script_tag = soup.find_all("script", {"type": "application/ld+json"})[0]
-        json_data = json.loads(script_tag.contents[0])
-        urls = [item["url"] for item in json_data["itemListElement"]]
-        return urls
-
+    def remove_duplicates(values):
+        return list(dict.fromkeys(values))
 
     @staticmethod
-    def remove_duplicates(lst: List[str]) -> List[str]:
-        """Removes duplicate links from a list."""
-        return list(OrderedDict.fromkeys(lst))
+    def fix_link(link):
+        """Modern detail URLs work directly; never force the retired old_ldp UI."""
+        result = property_url(link)
+        if not result:
+            raise ValueError("Not a recognized Funda property link.")
+        return result
 
-
-    @staticmethod
-    def fix_link(link: str) -> str:
-        """Fixes a given property link to ensure proper URL formatting."""
-        link_url = urlparse(link)
-        link_path = link_url.path.split("/")
-        property_id = link_path.pop(5)
-        property_address = link_path.pop(4).split("-")
-        link_path = link_path[2:4]
-        property_address.insert(1, property_id)
-        link_path.extend(["-".join(property_address), "?old_ldp=true"])
-        fixed_link = urlunparse(
-            (link_url.scheme, link_url.netloc, "/".join(link_path), "", "", "")
+    def run(self, clean_data=None, *, raw_data=None, save=False, filepath=None):
+        if raw_data is not None and clean_data is not None and clean_data == raw_data:
+            raise ValueError("raw_data and clean_data contradict each other")
+        clean = (
+            (not raw_data) if raw_data is not None else (True if clean_data is None else clean_data)
         )
-        return fixed_link
-
-
-    def _build_main_query_url(self) -> str:
-        """Constructs the main query URL for the search."""
-        query = "koop" if self.search_request.to_buy else "huur"
-
-        main_url = (
-            f"{self.base_url}/zoeken/{query}?selected_area=%5B%22{self.search_request.area}%22%5D"
+        # Do not leave stale results visible after a failed second run.
+        self.links = []
+        self.unavailable_links = []
+        self.raw_df = properties_frame([])
+        self.clean_df = pd.DataFrame()
+        main = self._build_main_query_url()
+        for page in range(
+            self.search_request.page_start,
+            self.search_request.page_start + self.search_request.number_of_pages,
+        ):
+            links = listing_links(self.transport.get(f"{main}&search_result={page}"))
+            if not links:
+                break
+            self.links.extend(links)
+        self.links = self.remove_duplicates(self.links)
+        houses = []
+        for url in self.links:
+            try:
+                html = self.transport.get(url)
+                houses.append(
+                    self.data_extractor.extract_data_from_detail_page(
+                        html, self.search_request, expected_url=url
+                    )
+                )
+            except UnavailableError:
+                self.unavailable_links.append(url)
+        if self.unavailable_links:
+            if not houses:
+                raise UnavailableError(
+                    "All discovered property links are unavailable; no CSV was exported."
+                )
+            warnings.warn(
+                f"Skipped {len(self.unavailable_links)} unavailable property links; inspect scraper.unavailable_links.",
+                UserWarning,
+                stacklevel=2,
+            )
+        self.raw_df = properties_frame(houses)
+        self.data_extractor.raw_df = self.raw_df
+        result = (
+            preprocess_data(self.raw_df, self.search_request.find_sold)
+            if clean
+            else self.raw_df.copy()
         )
-
-        if self.search_request.property_type:
-            property_types = self.search_request.property_type.split(",")
-            formatted_property_types = [
-                "%22" + prop_type + "%22" for prop_type in property_types
-            ]
-            main_url += f"&object_type=%5B{','.join(formatted_property_types)}%5D"
-
-        if self.search_request.find_sold:
-            main_url = f'{main_url}&availability=%5B"unavailable"%5D'
-
-        if self.search_request.min_price is not None or self.search_request.max_price is not None:
-            min_price = "" if self.search_request.min_price is None else self.search_request.min_price
-            max_price = "" if self.search_request.max_price is None else self.search_request.max_price
-            main_url = f"{main_url}&price=%22{min_price}-{max_price}%22"
-
-        if self.search_request.days_since is not None:
-            main_url = f"{main_url}&publication_date={self.search_request.check_days_since}"
-
-        if self.search_request.min_floor_area or self.search_request.max_floor_area:
-            min_floor_area = "" if self.search_request.min_floor_area is None else self.search_request.min_floor_area
-            max_floor_area = "" if self.search_request.max_floor_area is None else self.search_request.max_floor_area
-            main_url = f"{main_url}&floor_area=%22{min_floor_area}-{max_floor_area}%22"
-
-        if self.search_request.sort is not None:
-            main_url = f"{main_url}&sort=%22{self.search_request.sort_by}%22"
-
-        logger.info(f"*** Main URL: {main_url} ***")
-        return main_url
-
-
-    def _get_pages(self):
-        self._get_list_pages()
-        self._get_detail_pages()
-
-
-    def run(self, clean_data: bool = False) -> pd.DataFrame:
-        """
-        Runs the full scraping process, saving the results to a CSV file.
-
-        :param clean_data: if true, the data won't be pre-processed
-        :return: the (pre-processed) dataframe from scraping
-        """
-        logger.info(f"Started scraping, run_id: {self.run_id}")
-
-        logger.info("Fetching pages..")
-        self._get_pages()
-
-        logger.info("Extracting data from the html pages")
-        df = self.data_extractor.extract_data(self.search_request, self.run_id, clean_data)
-
-        logger.info("*** Done! ***")
-
-        return df
+        if clean:
+            self.clean_df = result
+            self.data_extractor.clean_df = result
+        if save:
+            target = (
+                Path(filepath) if filepath else Path(f"{self.search_request.area}_properties.csv")
+            )
+            target.parent.mkdir(parents=True, exist_ok=True)
+            result.to_csv(target, index=False)
+        return result
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--area",
-        type=str,
-        help="Specify which area you are looking for",
-        default="amsterdam",
-    )
-    parser.add_argument(
-        "--want_to",
-        type=str,
-        help="Specify you want to 'rent' or 'buy'",
-        default="rent",
-        choices=["rent", "buy"],
-    )
-    parser.add_argument(
-        "--find_sold",
-        action="store_true",
-        help="Indicate whether you want to use historical data",
-    )
-    parser.add_argument(
-        "--page_start", type=int, help="Specify which page to start scraping", default=1
-    )
-    parser.add_argument(
-        "--number_of_pages", type=int, help="Specify how many pages to scrape", default=1
-    )
-    parser.add_argument(
-        "--min_price", type=int, help="Specify the min price", default=None
-    )
-    parser.add_argument(
-        "--max_price", type=int, help="Specify the max price", default=None
-    )
-    parser.add_argument(
-        "--days_since",
-        type=int,
-        help="Specify the days since publication",
-        default=None,
-    )
-    parser.add_argument(
-        "--sort",
-        type=str,
-        help="Specify sorting",
-        default=None,
-        choices=[
-            None,
-            "relevancy",
-            "date_down",
-            "date_up",
-            "price_up",
-            "price_down",
-            "floor_area_down",
-            "plot_area_down",
-            "city_up" "postal_code_up",
-        ],
-    )
-    parser.add_argument(
-        "--raw_data",
-        action="store_true",
-        help="Indicate whether you want the raw scraping result",
-    )
-    parser.add_argument(
-        "--save",
-        action="store_true",
-        help="Indicate whether you want to save the data",
-    )
+    from funda_scraper.cli import main
 
-    args = parser.parse_args()
-    scraper = FundaScraper(
-        area=args.area,
-        want_to=args.want_to,
-        find_sold=args.find_sold,
-        page_start=args.page_start,
-        number_of_pages=args.number_of_pages,
-        min_price=args.min_price,
-        max_price=args.max_price,
-        days_since=args.days_since,
-        sort=args.sort,
-    )
-    df = scraper.run(raw_data=args.raw_data, save=args.save)
-    print(df.head())
+    raise SystemExit(main())

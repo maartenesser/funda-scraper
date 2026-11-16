@@ -2,6 +2,7 @@
 
 import re
 from datetime import datetime, timedelta
+from urllib.parse import urlsplit
 from typing import List, Union
 
 import pandas as pd
@@ -12,33 +13,37 @@ from funda_scraper.config.core import config
 
 def clean_price(x: str) -> int:
     """Clean the 'price' and transform from string to integer."""
-    try:
-        return int(str(x).split(" ")[1].replace(".", ""))
-    except ValueError:
+    match = re.search(r"\d[\d.,]*", str(x))
+    if not match:
         return 0
-    except IndexError:
+    number = match.group()
+    if re.fullmatch(r"\d{1,3}(?:\.\d{3})+(?:,\d+)?", number):
+        number = number.replace(".", "")
+    if re.fullmatch(r"\d{1,3}(?:,\d{3})+(?:\.\d+)?", number):
+        number = number.replace(",", "")
+    try:
+        return int(float(number.replace(",", ".")))
+    except (ValueError, OverflowError):
         return 0
 
 
 def clean_year(x: str) -> int:
     """Clean the 'year' and transform from string to integer"""
-    if len(x) == 4:
-        return int(x)
-    elif x.find("-") != -1:
-        return int(x.split("-")[0])
-    elif x.find("before") != -1:
-        return int(x.split(" ")[1])
-    else:
-        return 0
+    match = re.search(r"\b(\d{4})\b", str(x))
+    return int(match.group(1)) if match else 0
 
 
 def clean_living_area(x: str) -> int:
     """Clean the 'living_area' and transform from string to integer"""
-    try:
-        return int(str(x).replace(",", "").split(" m²")[0])
-    except ValueError:
+    match = re.search(r"\d[\d.,]*", str(x))
+    if not match:
         return 0
-    except IndexError:
+    number = match.group()
+    if re.fullmatch(r"\d{1,3}(?:[.,]\d{3})+", number):
+        number = number.replace(",", "").replace(".", "")
+    try:
+        return int(float(number.replace(",", ".")))
+    except (ValueError, OverflowError):
         return 0
 
 
@@ -126,15 +131,15 @@ def clean_date_format(x: str) -> Union[datetime, str]:
         if x.lower() in weekdays_dict.keys():
             date_string = weekdays_dict.get(x.lower())
             parsed_date = parse(date_string, fuzzy=True)
-            delta = datetime.now().weekday() - parsed_date.weekday()
+            delta = (datetime.now().weekday() - parsed_date.weekday()) % 7
             x = delta_now(delta)
 
         elif x.find("month") != -1:
-            x = delta_now(int(x.split("month")[0].strip()[0]) * 30)
+            x = delta_now(int(x.split("month")[0].strip()) * 30)
         elif x.find("week") != -1:
-            x = delta_now(int(x.split("week")[0].strip()[0]) * 7)
+            x = delta_now(int(x.split("week")[0].strip()) * 7)
         elif x.find("Today") != -1:
-            x = delta_now(1)
+            x = delta_now(0)
         elif x.find("day") != -1:
             x = delta_now(int(x.split("day")[0].strip()))
         else:
@@ -158,20 +163,52 @@ def preprocess_data(
     :return: clean dataframe
     """
 
-    df = df.dropna()
+    df = df.copy()
+    aliases = {
+        "descrip": "description",
+        "year": "year_of_construction",
+        "kind_of_house": "house_type",
+        "num_of_rooms": "number_of_rooms",
+        "num_of_bathrooms": "number_of_bathrooms",
+    }
+    for old, new in aliases.items():
+        if new not in df and old in df:
+            df[new] = df[old]
+    from funda_scraper.property import Property
+    from dataclasses import asdict
+
+    for name in asdict(Property()):
+        if name not in df:
+            df[name] = "na"
+    df = df.fillna("na")
 
     if not is_past:
-        keep_cols = config.keep_cols.selling_data
+        keep_cols = list(config.keep_cols.selling_data)
     else:
-        keep_cols = config.keep_cols.selling_data + config.keep_cols.sold_data
+        keep_cols = list(config.keep_cols.selling_data) + config.keep_cols.sold_data
 
     if keep_extra_cols is not None:
         keep_cols.extend(keep_extra_cols)
 
     # Info
-    df["house_id"] = df["url"].apply(lambda x: int(x.split("/")[-2]))
-    #df["house_type"] = df["url"].apply(lambda x: x.split("/")[-2].split("-")[0])
-    #df = df[df["house_type"].isin(["appartement", "huis"])]
+    if df.empty:
+        return pd.DataFrame(columns=keep_cols)
+
+    def house_id(url):
+        path = urlsplit(str(url)).path
+        match = re.search(r"/(\d+)/?$", path) or re.search(r"-(\d+)-", path)
+        if not match:
+            raise ValueError("Cannot extract house ID from property URL")
+        return int(match.group(1))
+
+    df["house_id"] = df["url"].apply(house_id)
+    # Older raw exports recorded kind_of_house but derived the URL property category.
+    if "kind_of_house" in df:
+        df["house_type"] = df["url"].apply(
+            lambda x: "appartement" if "/appartement-" in x else "huis"
+        )
+    # df["house_type"] = df["url"].apply(lambda x: x.split("/")[-2].split("-")[0])
+    # df = df[df["house_type"].isin(["appartement", "huis"])]
 
     # Price
     price_col = "price_sold" if is_past else "price"
@@ -179,6 +216,8 @@ def preprocess_data(
     df = df[df["price"] != 0]
     df["living_area"] = df["living_area"].apply(clean_living_area)
     df = df[df["living_area"] != 0]
+    if df.empty:
+        return pd.DataFrame(columns=keep_cols)
     df["price_m2"] = round(df.price / df.living_area, 1)
 
     # Location
@@ -198,8 +237,8 @@ def preprocess_data(
         # Only check past data
         df = df[df["date_sold"] != "na"]
         df["date_sold"] = df["date_sold"].apply(clean_date_format)
-        df = df.dropna()
-        df["date_sold"] = pd.to_datetime(df["date_sold"])
+        df["date_sold"] = pd.to_datetime(df["date_sold"], errors="coerce")
+        df = df.dropna(subset=["date_sold"])
         df["ym_sold"] = df["date_sold"].apply(lambda x: x.to_period("M").to_timestamp())
         df["year_sold"] = df["date_sold"].apply(lambda x: x.year)
 

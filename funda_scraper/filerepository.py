@@ -7,11 +7,11 @@ from funda_scraper.utils import logger
 
 class FileRepository(object):
     DATA_DIR = "data"
-    LISTPAGES_DIR = 'listpages'
-    DETAILPAGES_DIR = 'detailpages'
+    LISTPAGES_DIR = "listpages"
+    DETAILPAGES_DIR = "detailpages"
 
     def __init__(self) -> None:
-        self._ensure_dir(self.DATA_DIR)
+        pass
 
     def _ensure_dir(self, dir_name: str):
         if not os.path.exists(dir_name):
@@ -26,7 +26,7 @@ class FileRepository(object):
             file_path = os.path.join(list_pages_dir, f)
 
             if os.path.isfile(file_path):
-                with open(file_path, 'r') as file:
+                with open(file_path, "r") as file:
                     content = file.read()
                     pages.append(content)
 
@@ -41,7 +41,7 @@ class FileRepository(object):
             file_path = os.path.join(detail_pages_dir, f)
 
             if os.path.isfile(file_path):
-                with open(file_path, 'r') as file:
+                with open(file_path, "r") as file:
                     content = file.read()
                     pages[f] = content
 
@@ -53,8 +53,8 @@ class FileRepository(object):
 
         file_path = os.path.join(list_pages_dir, f"listpage_{index}.html")
 
-        with open(file_path, 'w') as file:
-                file.write(content)
+        with open(file_path, "w") as file:
+            file.write(content)
 
     def save_detail_page(self, content: str, index: int, run_id: str):
         detail_pages_dir = self._get_detail_pages_dir_name(run_id)
@@ -62,13 +62,14 @@ class FileRepository(object):
 
         file_path = os.path.join(detail_pages_dir, f"detailpage_{index}.html")
 
-        with open(file_path, 'w') as file:
+        with open(file_path, "w") as file:
             file.write(content)
 
     def save_result_file(self, df: pd.DataFrame, run_id: str):
         """Saves the scraped data to a CSV file."""
         file_path = os.path.join(self.DATA_DIR, run_id, "result.csv")
 
+        self._ensure_dir(os.path.dirname(file_path))
         df.to_csv(file_path, index=False)
         logger.info(f"*** File saved: {file_path}. ***")
 
@@ -77,9 +78,3 @@ class FileRepository(object):
 
     def _get_detail_pages_dir_name(self, run_id: str):
         return os.path.join(self.DATA_DIR, run_id, self.DETAILPAGES_DIR)
-
-
-
-
-
-
