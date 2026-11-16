@@ -7,7 +7,9 @@ The upstream starting commit was `c011570`.
 
 A local Camoufox run against one Amsterdam buying-results page discovered **15**
 property links, extracted **15** detail records and produced **15** cleaned rows.
-No API key, ScrapingBee account or paid proxy was used. The run kept one browser
+No API key, ScrapingBee account or paid proxy was used. A later repeated live
+run returned HTTP 403 and correctly raised BlockedError. Access was therefore
+observed to work for the successful run, but was not reliable across repeated runs. The run kept one browser
 context, rejected optional consent and spaced navigation by at least two seconds.
 The sample prices/areas were EUR 695000 / 121 m², EUR 650000 / 117 m² and
 EUR 395000 / 75 m². No raw HTML or session state was saved.
