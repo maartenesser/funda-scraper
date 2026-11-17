@@ -2,6 +2,8 @@
 
 Status: voorstel om samen te bespreken, niet goedgekeurd voor uitvoering. Datum: 16 november 2026. Basis: fork/main `96d4e4c`. Dit voorstel bouwt voort op [de research](</Users/maartenesser/reports/Funda scraping met Cloudflare.md>) en [de gemeten reparatie](../../verification.md).
 
+**Actuele scope:** de gebruiker heeft het doel verkleind naar persoonlijk, incrementeel gebruik. Voor de eerste fase geldt het [scopevoorstel van 17 november](2026-11-17-personal-incremental-scope.md). De grotere cloudonderdelen hieronder blijven een latere uitbreidingsoptie.
+
 ## Mijn aanbeveling
 
 Bouw één bestuurbare verzameldienst met een Cloudflare Worker als regelpunt en één aparte Python-browserrunner op een altijd beschikbare machine. De runner haalt taken zelf op via uitgaande HTTPS. Cloudflare D1 bewaart de voortgang en de resultaten; private R2-objecten bevatten gecontroleerde exports. Access beveiligt beheer en machineverkeer. Cron maakt begrensde opdrachten aan.
