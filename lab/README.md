@@ -2,10 +2,10 @@
 
 Live: https://funda-monitor-lab.maartenjr-esser.workers.dev
 
-This is a public, stateless fixture server and a timestamped test report. It does
-not scrape Funda, run a scheduled collection job, rotate proxies or prove isolated
-egress. There are no arbitrary URL inputs, external resources or outbound fetches
-in the Worker. The Python lab monitor only accepts this exact lab hostname or,
+The dashboard is a public, stateless fixture server and timestamped test report.
+It has no arbitrary URL inputs, external resources or outbound fetches. The manual
+remote harness additionally performed the bounded Funda canary documented below;
+there is no scheduled collection or proxy rotation. The Python lab monitor only accepts this exact lab hostname or,
 with an explicit test flag, local HTTP fixtures. Canonical Funda URLs in JSON-LD
 are synthetic identifiers, never fetch destinations.
 
@@ -67,3 +67,47 @@ Before any Funda canary: prove dedicated remote browser and network egress with
 fail-closed routing and complete request accounting. Do not run that canary from
 home/office, automatically retry a block or infer that these fixture results imply
 Funda access. See the isolated IP test spec in `docs/superpowers/specs/`.
+
+## Managed remote browser verification (executed)
+
+The managed Browser Run route was exercised on five bounded browser acquisitions
+(three owned QA attempts and two conditional-runner attempts). The final run
+passed hostname guardrails for navigation, redirects, images and worker fetches;
+server counters confirmed no forbidden hits from the remote browser. A positive
+control demonstrated that the denied receiver could count a real request. Source
+identity differed from the local operator and was observed as Cloudflare ASN13335.
+Only a nonce-salted source digest was compared in memory; no IP was persisted.
+
+The reserved `.invalid` hostname produced `ERR_CONNECTION_RESET`, a closed-path
+result through the managed provider. Its internal DNS diagnostic is NOT_OBSERVABLE.
+This is not a complete self-hosted firewall/namespace or arbitrary-protocol audit.
+No proxy, tunnel or WARP route is used. The real target context disabled page
+JavaScript, service workers and downloads and allowed only one exact main-frame
+search URL. Remote CDP response interception aborted redirects before they could
+be followed. `route.fetch()` is deliberately not used: it can issue requests from
+the local Playwright driver.
+
+Measured Funda outcome: one permitted document attempt, HTTP200 with CAPTCHA,
+BLOCKED; four other requests aborted, zero detail pages and zero retries. The
+persistent target reservation remains consumed across restarts and days. Periodic
+collection stays disabled. No alternative IP, browser or proxy was tried after
+this source block.
+
+State lives in ignored `lab/.cloudflare/remote-canary.sqlite`. Do not delete it to
+retest a blocked source. The runner has separate persistent bounds of three QA
+starts and two conditional-runner starts for this test day; there is a permanent
+single target-attempt latch. The development budget was explicitly revised in the
+managed-egress plan while source attempts were still zero. No counters were reset.
+
+The two observer Workers (`cf deploy --mode egress` and `--mode denied`) share the
+small D1 `funda-egress-observations` database. Fixed buckets and a single expiring
+public trial ID bound the stored rows; no credentials, source digests, IPs or
+request headers are stored. The public ID is a test identifier, not an access
+credential. After expiry, observer routes return410. The fixture dashboard has no
+D1 binding and remains a read-only snapshot of sanitized results.
+
+The manual harness requires the browser extra's Playwright library, but never
+launches a local browser or downloads a browser binary. Supply an authorized
+Browser Rendering Write token directly from the vault through stdin, never a file
+or an argument. Ordinary invocations after this block stop; they cannot reset the
+target latch. No scheduled canary job was added.

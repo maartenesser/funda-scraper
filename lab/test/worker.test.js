@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import worker from '../src/worker.js';
+import evidence from '../src/evidence.json' with {type:'json'};
 const request = path => worker.fetch(new Request('https://lab.example' + path));
 test('health makes the source gate explicit', async () => {
  const r = await request('/health'); assert.equal(r.status, 200);
@@ -30,5 +31,5 @@ test('detail fixture is labelled synthetic and has no external resources', async
 });
 test('dashboard distinguishes Funda from fixture results', async () => {
  const html = await (await request('/')).text();
- assert.match(html, /NOT_RUN/); assert.match(html, /Testomgeving/);
+ assert.ok(html.includes(evidence.funda.status)); assert.match(html, /Testomgeving/);
 });
