@@ -2,6 +2,8 @@
 
 Status: aangepaste scope voor bespreking, niet geïmplementeerd. Datum: 17 november 2026. Deze scope verfijnt het grotere [dienstontwerp](2026-11-16-reliable-funda-design.md): persoonlijk gebruik, één à twee gekozen steden, twee of drie controles per dag. Het eerste doel is nieuw ontdekt aanbod vinden, geen volledige landelijke kopie of complete prijshistorie.
 
+**Veiligheid van de eerste proef:** de gebruiker wil thuis-/kantoor-IP afschermen. Het [veiligheidsvoorstel na Claude-review](2026-11-17-ip-isolated-test-plan.md) vereist daarvoor een aparte remote browser/testuitgang; de eigen thuisverbinding wordt niet live als baseline getest.
+
 ## Aanbevolen eerste opzet
 
 Eén altijd beschikbare runner, een lokale scheduler en SQLite voor voortgang/gevonden items zijn voor dit volume een passende eerste fase. Een proceslock voorkomt overlap. Atomische lokale exports en een leesbaar runrapport zijn voldoende. Cloudflare, een centrale D1-database, R2, distributed leases en meerdere machines blijven uitbreidingen; er komen geen dubbele actieve databases. Een eventuele latere overstap krijgt een expliciete migratie.
