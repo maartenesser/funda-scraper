@@ -18,3 +18,18 @@ jobs:
       - run: pytest
       - run: ruff check funda_scraper tests main.py setup.py
       - run: python -m build
+  worker:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.13.1'
+          cache: npm
+          cache-dependency-path: lab/package-lock.json
+      - run: npm ci
+        working-directory: lab
+      - run: npm test
+        working-directory: lab
+      - run: npx cf deploy --dry-run
+        working-directory: lab

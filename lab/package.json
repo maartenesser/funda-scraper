@@ -1,0 +1,5 @@
+{
+  "name": "funda-monitor-lab", "private": true, "type": "module",
+  "scripts": {"test": "node --test test/*.test.js", "build": "cf build", "deploy": "cf deploy"},
+  "devDependencies": {"cf": "1.0.0-rc.1", "@cloudflare/vite-plugin": "2.0.0-rc.1", "vite": "^7.0.0"}
+}
