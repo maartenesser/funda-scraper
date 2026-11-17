@@ -1,3 +1,6 @@
 include README.md LICENSE
 recursive-include funda_scraper/config *.yaml
 include funda_scraper/VERSION
+
+include scripts/probe_monitor_lab.py
+include scripts/remote_canary.py

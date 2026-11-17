@@ -1,0 +1,11 @@
+node_modules/
+.cloudflare/
+.wrangler/
+dist/
+.env*
+.dev.vars*
+*.log
+*-probe.json
+python-results.xml
+remote-route*.json
+remote-canary.json

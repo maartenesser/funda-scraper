@@ -1,0 +1,269 @@
+{
+  "generated_at": "2026-11-17T19:23:56.078773+00:00",
+  "mode": "test_lab",
+  "funda_enabled": false,
+  "python": {
+    "status": "PASS",
+    "passed": 86,
+    "real_browser": "PASS_OWNED_LOCAL_FIXTURE"
+  },
+  "worker": {
+    "status": "PASS",
+    "passed": 11
+  },
+  "live": {
+    "status": "PASS",
+    "passed": 9,
+    "checked_at": "2026-11-17T17:40:26.738793+00:00",
+    "checks": [
+      {
+        "case": "baseline",
+        "passed": true,
+        "result": {
+          "status": "COMPLETE",
+          "source_mode": "synthetic",
+          "funda_enabled": false,
+          "baseline_items": 1,
+          "new_items": 0,
+          "changed_items": 0,
+          "discovered": 1,
+          "details_fetched": 0,
+          "valid_records": 0,
+          "deferred": 0,
+          "timestamp": "2026-11-17T17:40:26.738793+00:00",
+          "scenario": "initial"
+        }
+      },
+      {
+        "case": "new_and_duplicate",
+        "passed": true,
+        "result": {
+          "status": "COMPLETE",
+          "source_mode": "synthetic",
+          "funda_enabled": false,
+          "baseline_items": 0,
+          "new_items": 1,
+          "changed_items": 0,
+          "discovered": 2,
+          "details_fetched": 1,
+          "valid_records": 1,
+          "deferred": 0,
+          "timestamp": "2026-11-17T17:40:26.738793+00:00",
+          "scenario": "new"
+        }
+      },
+      {
+        "case": "changed",
+        "passed": true,
+        "result": {
+          "status": "COMPLETE",
+          "source_mode": "synthetic",
+          "funda_enabled": false,
+          "baseline_items": 0,
+          "new_items": 0,
+          "changed_items": 1,
+          "discovered": 1,
+          "details_fetched": 1,
+          "valid_records": 1,
+          "deferred": 0,
+          "timestamp": "2026-11-17T17:40:26.738793+00:00",
+          "scenario": "changed"
+        }
+      },
+      {
+        "case": "blocked",
+        "passed": true,
+        "result": {
+          "status": "BLOCKED",
+          "source_mode": "synthetic",
+          "funda_enabled": false,
+          "baseline_items": 0,
+          "new_items": 0,
+          "changed_items": 0,
+          "discovered": 0,
+          "details_fetched": 0,
+          "valid_records": 0,
+          "deferred": 0,
+          "timestamp": "2026-11-17T17:40:26.738793+00:00",
+          "scenario": "blocked",
+          "reason": "BLOCK_SIGNAL"
+        }
+      },
+      {
+        "case": "rate",
+        "passed": true,
+        "result": {
+          "status": "BLOCKED",
+          "source_mode": "synthetic",
+          "funda_enabled": false,
+          "baseline_items": 0,
+          "new_items": 0,
+          "changed_items": 0,
+          "discovered": 0,
+          "details_fetched": 0,
+          "valid_records": 0,
+          "deferred": 0,
+          "timestamp": "2026-11-17T17:40:26.738793+00:00",
+          "scenario": "rate",
+          "reason": "BLOCK_SIGNAL"
+        }
+      },
+      {
+        "case": "captcha",
+        "passed": true,
+        "result": {
+          "status": "BLOCKED",
+          "source_mode": "synthetic",
+          "funda_enabled": false,
+          "baseline_items": 0,
+          "new_items": 0,
+          "changed_items": 0,
+          "discovered": 0,
+          "details_fetched": 0,
+          "valid_records": 0,
+          "deferred": 0,
+          "timestamp": "2026-11-17T17:40:26.738793+00:00",
+          "scenario": "captcha",
+          "reason": "BLOCK_SIGNAL"
+        }
+      },
+      {
+        "case": "unknown",
+        "passed": true,
+        "result": {
+          "status": "FAILED",
+          "source_mode": "synthetic",
+          "funda_enabled": false,
+          "baseline_items": 0,
+          "new_items": 0,
+          "changed_items": 0,
+          "discovered": 0,
+          "details_fetched": 0,
+          "valid_records": 0,
+          "deferred": 0,
+          "timestamp": "2026-11-17T17:40:26.738793+00:00",
+          "scenario": "unknown",
+          "reason": "UNRECOGNIZED_PAGE"
+        }
+      },
+      {
+        "case": "redirect",
+        "passed": true,
+        "result": {
+          "status": "FAILED",
+          "source_mode": "synthetic",
+          "funda_enabled": false,
+          "baseline_items": 0,
+          "new_items": 0,
+          "changed_items": 0,
+          "discovered": 0,
+          "details_fetched": 0,
+          "valid_records": 0,
+          "deferred": 0,
+          "timestamp": "2026-11-17T17:40:26.738793+00:00",
+          "scenario": "redirect",
+          "reason": "HTTP_NOT_OK"
+        }
+      },
+      {
+        "case": "empty",
+        "passed": true,
+        "result": {
+          "status": "COMPLETE",
+          "source_mode": "synthetic",
+          "funda_enabled": false,
+          "baseline_items": 0,
+          "new_items": 0,
+          "changed_items": 0,
+          "discovered": 0,
+          "details_fetched": 0,
+          "valid_records": 0,
+          "deferred": 0,
+          "timestamp": "2026-11-17T17:40:26.738793+00:00",
+          "scenario": "empty"
+        }
+      }
+    ]
+  },
+  "funda": {
+    "status": "BLOCKED",
+    "reason": "CAPTCHA",
+    "requests_sent": 1,
+    "details_fetched": 0,
+    "javascript_enabled": false,
+    "retries": 0,
+    "http_status": 200,
+    "html_bytes_in_memory": 13940,
+    "requests_aborted": 4,
+    "network_bytes": 4066,
+    "redirect_blocked": false,
+    "context_closed": true,
+    "state_saved": true,
+    "performed": true,
+    "checked_at": "2026-11-17T19:21:26.110857+00:00",
+    "provider": "cloudflare-browser-run",
+    "persistent_stop_verified": true
+  },
+  "scheduled_monitoring": false,
+  "visual_browser_review": "NOT_RUN_BROWSER_ACCESS_HOST_UNAVAILABLE",
+  "source_sha256": {
+    "funda_scraper/monitor_lab.py": "8be76bccf5d7a13718dc6441097e078defd0165beda90a9533ff9d7bd588f823",
+    "scripts/probe_monitor_lab.py": "bb700cce17d0bb65909f3cb3f17b50b63ff0903f054d8454fb6e06921f98bba8",
+    "scripts/remote_canary.py": "89aa8c780766e86355121334b736cd5254ca23621f6b8cb180bf5669c0e3a6fc",
+    "lab/src/worker.js": "dd3cf223f00a98de30e7d0b796d9d026a62562749a8b3ff27d1af0439a039379",
+    "lab/src/egress.js": "8f371379c181fa06376b0d1e516b73da33b918db195d98170b49cf581d283971"
+  },
+  "remote_route": {
+    "status": "PASS",
+    "provider": "cloudflare-browser-run",
+    "checked_at": "2026-11-17T19:21:26.110857+00:00",
+    "checks": {
+      "observer_control": true,
+      "remote_source": true,
+      "allowed_origin": true,
+      "guardrails_navigation": true,
+      "guardrails_redirect": true,
+      "guardrails_subresource": true,
+      "guardrails_worker": true,
+      "unresolvable_host_fail_closed": true,
+      "response_interception": true,
+      "javascript_disabled": true,
+      "same_host_redirect_blocked": true,
+      "context_cleanup": true,
+      "forbidden_count_unchanged": true,
+      "cleanup": true
+    },
+    "observer_counts": [
+      {
+        "bucket": "allowed",
+        "total": 5,
+        "remote": 5
+      },
+      {
+        "bucket": "forbidden",
+        "total": 5,
+        "remote": 0
+      },
+      {
+        "bucket": "worker-control",
+        "total": 3,
+        "remote": 3
+      }
+    ],
+    "worker_check_method": "allowed_control_plus_receiving_counter_and_no_csp_violation",
+    "dns_probe": {
+      "passed": true,
+      "page_closed": true,
+      "network_code": "ERR_CONNECTION_RESET",
+      "resolver_diagnostic": "NOT_OBSERVABLE_FROM_MANAGED_BROWSER"
+    },
+    "code_sha256": "89aa8c780766e86355121334b736cd5254ca23621f6b8cb180bf5669c0e3a6fc",
+    "scope": "managed browser HTTP(S); JS-disabled single-document canary; no self-hosted namespace audit"
+  },
+  "test_run_budget": {
+    "qa_browser_start_attempts": 3,
+    "conditional_browser_start_attempts": 2,
+    "funda_document_attempts": 1,
+    "funda_auto_retry_allowed": false
+  }
+}
